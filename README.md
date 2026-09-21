@@ -33,7 +33,8 @@ BioViz Studio is a browser-based tool for inspecting and labelling long physiolo
 - **Hybrid annotation engine.** Mark *instantaneous* fiducial points (e.g. P, Q, R, S, T peaks), drawn as dashed vertical lines, and *interval* events (e.g. noise segments, arrhythmia episodes, activity bouts), drawn as semi-transparent bands, on the same recording.
 - **Runtime label schemas.** Upload a plain-text, comma-separated list of event labels to extend the label set for your study protocol without changing any code.
 - **Native WFDB annotations.** Beat and rhythm annotations stored in PhysioNet `.atr` files are loaded and displayed automatically.
-- **Chunk-and-Slice rendering.** View a window of the recording (5,000 samples by default), step through it chunk by chunk, and down-sample when needed; traces are drawn with WebGL (`Scattergl`) so multi-million-sample recordings stay responsive.
+- **Chunk-and-Slice rendering.** View a window of the recording (5,000 samples by default), step through it chunk by chunk, and down-sample when needed; traces are drawn with WebGL (`Scattergl`) so multi-million-sample recordings stay responsive. A safety valve warns when a window would exceed 5,000 points per signal and suggests a down-sampling rate.
+- **Privacy by default.** Recordings are processed only in the current session and never uploaded; a notice at the top of the dashboard states this.
 - **ML-ready export.** Download your annotations, or a merged dataset in which every sample carries its event label, type and notes (overlapping labels are combined).
 - **Built-in ECG analysis.** NeuroKit2 signal cleaning and R-peak detection on the selected window.
 - **Machine learning module.** Leave-one-participant-out (LOPO) evaluation of Random Forest, SVM, Decision Tree and Gradient Boosting classifiers on a feature table.
@@ -107,7 +108,7 @@ Choose a mode in the sidebar.
 | **Select X-Axis** | Plot against the sample index or any column (e.g. a timestamp). |
 | **Select Signals to Visualize** | One or more channels to draw. |
 | **Select Range of Samples** + **Previous / Next Chunk** | The Chunk-and-Slice window. |
-| **Signal Downsample Rate** | Draw every *n*-th sample (1–100). |
+| **Signal Downsample Rate** | Draw every *n*-th sample (1–100). A warning suggests a rate when the window exceeds 5,000 points per signal. |
 | **Remove Zeros / Outlier Removal (Sigma)** | Display-only cleaning; the underlying data is unchanged. |
 | **Display View Mode** | *Overlay* on one axis, or *Stacked* subplots. |
 | **Segment Column** | Draws labelled boundaries from a categorical column (e.g. an activity code). |
@@ -117,7 +118,9 @@ Choose a mode in the sidebar.
 **Manual Annotation Toolkit**
 
 - **Load Custom Event Labels:** a `.txt` file of comma-separated labels, e.g.
-  `Normal Sinus, Signal Loss, Baseline Wander, Motion Artifact`. Custom labels are added to the defaults (`Noise`, `Artifact`, `Arrhythmia`, `R-wave`).
+  `Normal Sinus, Signal Loss, Baseline Wander, Motion Artifact`. Custom labels are added to the base taxonomy:
+  - *Interval:* Normal Sinus, Noise, Motion Artifact, Baseline Wander, Signal Loss, Arrhythmia, Stress Event, P-wave, R-wave, T-wave
+  - *Instantaneous:* P-wave, Q-wave, R-wave, S-wave, T-wave, Other
 - **Event Type:** *Interval* (start and end) or *Instantaneous* (single point).
 - **Start / End Point:** in samples when the x-axis is the sample index, otherwise in seconds.
 - **Clinical/Research Notes:** free text stored with the annotation.
@@ -157,7 +160,7 @@ The default upload limit in the Docker deployment is 2 GB per file.
 | `annotations_<session>.csv` | One row per manual annotation: `id`, `label`, `type`, `start_time`, `end_time` (seconds), `sample_idx`, `notes`. |
 | `merged_<session>.csv` | The original data plus `event_label`, `event_type` and `event_notes` columns. Samples covered by several annotations list all of them separated by `; `. |
 | `<model>_LOPO_results.csv`, `<model>_LOPO_summary.json` | Fold-level and summary metrics from the ML module. |
-| `benchmark_<session>.csv` | Per-trial `execution_time_ms`, `plot_gen_time_ms`, `throughput_ksps`, `total_points_rendered`, `active_trace_count`. |
+| `benchmark_<session>.csv` | Per-trial `execution_time_ms`, `plot_gen_time_ms`, `throughput_ksps`, `peak_memory_mb` (peak resident memory of the app process), `total_points_rendered`, `active_trace_count`. |
 
 ---
 
@@ -224,7 +227,7 @@ If you use BioViz Studio, please cite the software (see [`CITATION.cff`](CITATIO
   title   = {BioViz Studio: An open-source containerized framework for scalable visualization
              and hybrid annotation of psycho-physiological time-series signals},
   author  = {{Wearable Biosensing Lab, University of Rhode Island}},
-  version = {1.0.0},
+  version = {1.0.1},
   doi     = {10.5281/zenodo.18636308},
   url     = {https://github.com/wearablebiosensing/multimodal_biosignalviz_SoftwareX},
   year    = {2026}

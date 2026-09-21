@@ -20,6 +20,21 @@ import gc
 import warnings
 import json
 import firebase_module
+
+def coerce_numeric_columns(df):
+    """Convert text columns that hold only numbers to numeric dtypes, once, at load time.
+
+    A column is converted only when every non-empty value parses as a number, so
+    categorical columns (activity labels, timestamps as text, etc.) are left untouched.
+    Doing this once at load avoids repeating the conversion on every redraw.
+    """
+    for col in df.columns:
+        if df[col].dtype == object:
+            converted = pd.to_numeric(df[col], errors='coerce')
+            if converted.notna().sum() == df[col].notna().sum():
+                df[col] = converted
+    return df
+
 def process_ecg(data_series, fs, method="pantompkins1985", invert=False):
     try:
         series = pd.to_numeric(data_series, errors='coerce').interpolate().ffill().bfill().fillna(0)

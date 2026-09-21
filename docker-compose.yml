@@ -1,7 +1,7 @@
 services:
   biosignal-app:
     build: ./src
-    image: bioviz-studio:1.0.0
+    image: bioviz-studio:1.0.1
     container_name: bioviz_studio
     ports:
       - "8501:8501"

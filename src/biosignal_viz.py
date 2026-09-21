@@ -19,6 +19,12 @@ import uuid
 import gc
 import warnings
 import json
+import sys
+import math
+try:
+    import resource  # POSIX only; used for peak-memory reporting in the benchmark
+except ImportError:
+    resource = None
 from machine_learning.RF.ml_random_forest import rf_leave_one_participant_out_weighted #rf_leave_one_participant_out_undersampled
 from machine_learning.SVM.ml_svm import svm_leave_one_participant_out_weighted
 from machine_learning.DT.ml_dt import dt_leave_one_participant_out
@@ -128,13 +134,18 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 st.title("BioViz Studio: High-Performance Signal Annotation")
+st.info(
+    "🔒 **Privacy:** uploaded recordings are processed only within this session and are never "
+    "uploaded to cloud storage. If optional Firestore logging is enabled, only annotations "
+    "(including notes) and performance metrics are stored in your own Firebase project.",
+)
 
 @st.cache_data
 def load_data(file):
     detected_annotations = []
     try:
         if file.name.lower().endswith('.csv'):
-            df = pd.read_csv(file, low_memory=False)
+            df = coerce_numeric_columns(pd.read_csv(file, low_memory=False))
             if 'activity_int_merged' in df.columns:
                
                 # 4. Sort globally by the new timestamp column
@@ -156,7 +167,7 @@ def load_data(file):
             finally:
                 if os.path.exists(tmp_path): os.remove(tmp_path)
         elif file.name.lower().endswith('.txt'):
-            df = pd.read_csv(file, sep=None, engine='python')
+            df = coerce_numeric_columns(pd.read_csv(file, sep=None, engine='python'))
             return df, None, []
         elif file.name.lower().endswith('.zip'):
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -194,6 +205,15 @@ def load_data(file):
     except Exception as e:
         st.error(f"Error loading file: {e}")
         return None, None, []
+
+
+def peak_memory_mb():
+    """Peak resident memory of this process in MB (0 where unavailable)."""
+    if resource is None:
+        return 0.0
+    peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    # ru_maxrss is reported in bytes on macOS and in kilobytes on Linux
+    return peak / (1024 * 1024) if sys.platform == 'darwin' else peak / 1024
 
 
 with st.sidebar:
@@ -279,6 +299,17 @@ elif app_mode == "Analysis Dashboard":
                 selected_activity_col = st.selectbox("Segment Column (Vertical Lines)", 
                                         options=["None"] + activity_col_options,
                                         help="Select the column to use for generating vertical segment boundaries.")
+            # --- Safety valve: warn when the window would send too many points to the browser ---
+            MAX_POINTS_PER_TRACE = 5000
+            points_per_trace = math.ceil(max(0, end_row - start_row) / max(1, downsample_rate))
+            if points_per_trace > MAX_POINTS_PER_TRACE:
+                suggested_rate = math.ceil(points_per_trace * downsample_rate / MAX_POINTS_PER_TRACE)
+                st.warning(
+                    f"⚠️ The selected window contains {points_per_trace:,} points per signal "
+                    f"(more than {MAX_POINTS_PER_TRACE:,}). To keep the browser responsive, set the "
+                    f"Signal Downsample Rate to {suggested_rate} or narrow the sample range."
+                )
+
             # --- Annotation Management ---
             db_anns = get_annotations(current_doc_id)
             all_current_anns = db_anns + st.session_state.native_annotations + st.session_state.get('stress_test_annotations', [])
@@ -303,7 +334,12 @@ elif app_mode == "Analysis Dashboard":
                 ac1, ac2, ac3, ac4, ac5 = st.columns([1.5, 1, 1, 1.5, 1])
                 with ac2: ann_type = st.selectbox("Event Type", ["Interval", "Instantaneous"])
                 with ac1:
-                    default_labels = ["Noise", "Artifact", "Arrhythmia", "R-wave"]
+                    # Base taxonomy; extended at runtime by the uploaded label file.
+                    if ann_type == "Interval":
+                        default_labels = ["Normal Sinus", "Noise", "Motion Artifact", "Baseline Wander",
+                                          "Signal Loss", "Arrhythmia", "Stress Event", "P-wave", "R-wave", "T-wave"]
+                    else:
+                        default_labels = ["P-wave", "Q-wave", "R-wave", "S-wave", "T-wave", "Other"]
                     combined_labels = list(dict.fromkeys(st.session_state.custom_labels + default_labels))
                     ann_label = st.selectbox("Event Label", combined_labels)
                 
@@ -359,7 +395,8 @@ elif app_mode == "Analysis Dashboard":
                         signals_to_draw = [c for c in selected_columns if c != selected_activity_col]
                         
                         for col in selected_columns:
-                            df_slice[col] = pd.to_numeric(df_slice[col], errors='coerce')
+                            if not pd.api.types.is_numeric_dtype(df_slice[col]):
+                                df_slice[col] = pd.to_numeric(df_slice[col], errors='coerce')
                             if remove_zeros:
                                 df_slice[col] = df_slice[col].replace(0, np.nan)
                             if 'outlier_sigma' in locals() and outlier_sigma > 0:
@@ -492,6 +529,9 @@ elif app_mode == "Analysis Dashboard":
                             fig.update_yaxes(title_text=dynamic_y_title)
                         st.plotly_chart(fig, use_container_width=True)
                     st.caption(f"⚡ Performance Metrics | Plot Generation: {pm.duration*1000:.2f} ms")
+                    firebase_module.log_plot_performance(
+                        current_doc_id, uploaded_file.name, pm.duration * 1000,
+                        len(df_slice) * len(signals_to_draw), len(signals_to_draw))
 
             st.markdown("---")
             st.subheader("2. Advanced ECG Analysis")
@@ -725,13 +765,15 @@ elif app_mode == "Evaluation Experiment":
                                 t_plot = time.perf_counter() - t1
                                 total_p = end_idx * actual_ch
                                 
-                                firebase_module.log_computation_metrics(sid, f_info['file'], f"bench_{f_info['type']}", t_load + t_plot, 0, (total_p / (t_load + t_plot)) / 1000)
+                                peak_mb = peak_memory_mb()
+                                firebase_module.log_computation_metrics(sid, f_info['file'], f"bench_{f_info['type']}", t_load + t_plot, peak_mb, (total_p / (t_load + t_plot)) / 1000)
                                 firebase_module.log_plot_performance(sid, f_info['file'], t_plot * 1000, total_p, actual_ch)
                                 local_results.append({
                                     'file_name': f_info['file'],
                                     'analysis_type': f"bench_{f_info['type']}",
                                     'trial': t + 1,
                                     'execution_time_ms': (t_load + t_plot) * 1000,
+                                    'peak_memory_mb': peak_mb,
                                     'throughput_ksps': (total_p / (t_load + t_plot)) / 1000,
                                     'plot_gen_time_ms': t_plot * 1000,
                                     'total_points_rendered': total_p,
