@@ -1,0 +1,24 @@
+services:
+  biosignal-app:
+    build: ./src
+    image: bioviz-studio:1.0.0
+    container_name: bioviz_studio
+    ports:
+      - "8501:8501"
+    # Elevated privileges and an unconfined seccomp profile lift Docker's default
+    # thread limits for large recordings (see paper, Section 2.1).
+    privileged: true
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - STREAMLIT_SERVER_MAX_UPLOAD_SIZE=2000
+      - STREAMLIT_SERVER_FILE_WATCHER_TYPE=none
+      - OMP_NUM_THREADS=1
+      - MKL_NUM_THREADS=1
+      - OPENBLAS_NUM_THREADS=1
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 20000
+        hard: 40000
+    pids_limit: -1

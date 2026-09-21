@@ -1,0 +1,1 @@
+Normal Sinus, Signal Loss, Baseline Wander, Motion Artifact, Muscle Noise, Atrial Fibrillation, PVC, Stress Event

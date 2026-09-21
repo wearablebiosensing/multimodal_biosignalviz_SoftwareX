@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use BioViz Studio in your research, please cite it as below."
+title: "BioViz Studio: An open-source containerized framework for scalable visualization and hybrid annotation of psycho-physiological time-series signals"
+type: software
+version: 1.0.0
+license: MIT
+repository-code: "https://github.com/wearablebiosensing/multimodal_biosignalviz_SoftwareX"
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.18636308
+    description: "Archived software release on Zenodo"
+authors:
+  - name: "Wearable Biosensing Lab, University of Rhode Island"
+keywords:
+  - physiological signals
+  - time-series annotation
+  - visualization
+  - electrocardiography
+  - wearable sensors
+  - docker

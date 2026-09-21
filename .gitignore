@@ -1,0 +1,23 @@
+# Credentials — never commit
+firebase_key.json
+*firebase-adminsdk*.json
+gemini_key.txt
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+
+# Raw PhysioNet downloads (large; fetch with eval_scripts/download_physionet.py)
+eval_scripts/physionet/
+
+# Model outputs
+*_LOPO_RESULTS/

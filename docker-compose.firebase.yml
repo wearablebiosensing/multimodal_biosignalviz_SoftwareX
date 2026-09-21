@@ -1,0 +1,7 @@
+# Optional: enable Cloud Firestore persistence of annotations and telemetry.
+# Place your own service-account key at src/firebase_key.json (git-ignored), then run:
+#   docker compose -f docker-compose.yml -f docker-compose.firebase.yml up --build
+services:
+  biosignal-app:
+    volumes:
+      - ./src/firebase_key.json:/app/firebase_key.json:ro

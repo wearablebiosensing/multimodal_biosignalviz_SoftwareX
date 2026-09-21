@@ -1,0 +1,10 @@
+# never copy credentials into the image
+firebase_key.json
+*firebase-adminsdk*.json
+gemini_key.txt
+.env
+# build junk
+__pycache__/
+*.pyc
+.DS_Store
+*_LOPO_RESULTS/
