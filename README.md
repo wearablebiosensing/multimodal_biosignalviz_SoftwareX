@@ -7,6 +7,12 @@
 
 BioViz Studio is a browser-based tool for inspecting and labelling long physiological recordings (ECG, accelerometer, gyroscope, heart rate and other biosignals) and turning expert annotations into machine-learning-ready datasets. It runs as a single Docker container, so the same pinned environment behaves identically on a laptop, a workstation or an HPC node.
 
+### ▶ Video tutorial (1 min 19 s)
+
+[![Watch the BioViz Studio video tutorial](docs/video/bioviz-tutorial_thumbnail.png)](docs/video/bioviz-tutorial_1.mp4)
+
+*Click the image to play the seven-step walkthrough: run with Docker, load a recording, slice, stack and segment, annotate, detect R-peaks, and train a LOPO model.*
+
 ![Architecture](docs/images/architecture.png)
 
 ---
